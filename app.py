@@ -46,8 +46,22 @@ with st.sidebar:
 
     st.divider()
     st.subheader("Investment & SWP")
-    initial_investment = st.number_input("Initial Investment (INR)", value=5000000, step=100000)
-    monthly_withdrawal = st.number_input("Monthly SWP (INR)", value=29166, step=1000)
+    initial_investment = st.number_input(
+        "Initial Investment (INR)",
+        min_value=0,
+        step=100000,
+        value=None,
+        placeholder="e.g. 1,00,000",
+        format="%d"
+    )
+    monthly_withdrawal = st.number_input(
+        "Monthly SWP (INR)",
+        min_value=0,
+        step=1000,
+        value=None,
+        placeholder="e.g. 10,000",
+        format="%d"
+    )
 
     st.subheader("Market Dynamics")
     years = st.slider("Horizon (Years)", 5, 40, 20)
@@ -58,30 +72,98 @@ with st.sidebar:
     inflation_rate_val = st.slider("Annual Inflation (%)", 0.0, 12.0, 6.0)
     inflation_rate = inflation_rate_val / 100
 
-    st.subheader("First Year DIP % (Initial Boost)")
-    d_l = st.number_input("Large Cap DIP %", value=8.33) / 100
-    d_f = st.number_input("Flexi Cap DIP %", value=8.00) / 100
-    d_m = st.number_input("Mid Cap DIP %", value=2.00) / 100
-    d_s = st.number_input("Small Cap DIP %", value=7.00) / 100
+    st.subheader("DIP %")
+    d_l = st.number_input(
+        "Large Cap DIP %",
+        min_value=0.0,
+        value=0.0,
+        format="%.2f"
+    )
+    d_f = st.number_input(
+        "Flexi Cap DIP %",
+        min_value=0.0,
+        value=0.0,
+        format="%.2f"
+    )
+    d_m = st.number_input(
+        "Mid Cap DIP %",
+        min_value=0.0,
+        value=0.0,
+        format="%.2f"
+    )
+    d_s = st.number_input(
+        "Small Cap DIP %",
+        min_value=0.0,
+        value=0.0,
+        format="%.2f"
+    )
+
+    # Use 0 as fallback if not entered yet
+    d_l_val = (d_l or 0) / 100
+    d_f_val = (d_f or 0) / 100
+    d_m_val = (d_m or 0) / 100
+    d_s_val = (d_s or 0) / 100
 
     st.subheader("Asset Allocation (%)")
     c1, c2 = st.columns(2)
     with c1:
         st.caption("Initial Split")
-        a_l_val = st.number_input("Large", 0, 100, 30, key="al")
-        a_f_val = st.number_input("Flexi", 0, 100, 25, key="af")
-        a_m_val = st.number_input("Mid", 0, 100, 25, key="am")
-        a_s_val = st.number_input("Small", 0, 100, 20, key="as")
+        a_l_val = st.number_input(
+            "Large", min_value=0, max_value=100, value=35, format="%d", key="al"
+        )
+        a_f_val = st.number_input(
+            "Flexi", min_value=0, max_value=100, value=30, format="%d", key="af"
+        )
+        a_m_val = st.number_input(
+            "Mid", min_value=0, max_value=100, value=20, format="%d", key="am"
+        )
+        a_s_val = st.number_input(
+            "Small", min_value=0, max_value=100, value=15, format="%d", key="as"
+        )
     with c2:
         st.caption("Withdrawal Split")
-        w_l_val = st.number_input("Large ", 0, 100, 50, key="wl")
-        w_f_val = st.number_input("Flexi ", 0, 100, 40, key="wf")
-        w_m_val = st.number_input("Mid ", 0, 100, 5, key="wm")
-        w_s_val = st.number_input("Small ", 0, 100, 5, key="ws")
+        w_l_val = st.number_input(
+            "Large ", min_value=0, max_value=100, value=35, format="%d", key="wl"
+        )
+        w_f_val = st.number_input(
+            "Flexi ", min_value=0, max_value=100, value=30, format="%d", key="wf"
+        )
+        w_m_val = st.number_input(
+            "Mid ", min_value=0, max_value=100, value=20, format="%d", key="wm"
+        )
+        w_s_val = st.number_input(
+            "Small ", min_value=0, max_value=100, value=15, format="%d", key="ws"
+        )
 
     st.divider()
     st.subheader("Safe SWP Finder")
     target_survival = st.slider("Target Survival Probability (%)", 70, 99, 90)
+
+# Guard: require all inputs before proceeding
+missing_inputs = []
+if initial_investment is None:
+    missing_inputs.append("Initial Investment")
+if monthly_withdrawal is None:
+    missing_inputs.append("Monthly SWP")
+if any(v is None for v in [a_l_val, a_f_val, a_m_val, a_s_val]):
+    missing_inputs.append("Initial Split allocation(s)")
+if any(v is None for v in [w_l_val, w_f_val, w_m_val, w_s_val]):
+    missing_inputs.append("Withdrawal Split allocation(s)")
+
+if missing_inputs:
+    st.info("Adjust the parameters in the sidebar and click RUN SIMULATION to begin.")
+    st.markdown(f"**Please fill in:** {', '.join(missing_inputs)}")
+    st.markdown("""
+    **What this simulator includes:**
+    - Wealth Projection with P10, P25, P50, P75, P90 confidence bands
+    - Drawdown Risk: peak-to-trough decline at median and stress percentiles
+    - Asset Allocation Drift: how the portfolio mix evolves over time
+    - Withdrawal Coverage Ratio: years of SWP remaining in the corpus
+    - Effective Withdrawal Rate vs Blended Expected Return, year by year
+    - Safe SWP Finder: binary search for maximum sustainable monthly withdrawal
+    - Yearly table with P10/P90 range, coverage ratio, effective rate, and survival probability
+    """)
+    st.stop()
 
 # Converting whole numbers to decimals for the engine
 alloc = np.array([a_l_val, a_f_val, a_m_val, a_s_val]) / 100
@@ -105,7 +187,7 @@ corr = np.array([
     [0.7, 0.75, 0.85, 1.0]
 ])
 L = np.linalg.cholesky(np.outer(mvol, mvol) * corr)
-dip_array = np.array([d_l, d_f, d_m, d_s])
+dip_array = np.array([d_l_val, d_f_val, d_m_val, d_s_val])
 
 ASSET_NAMES = ["Large Cap", "Flexi Cap", "Mid Cap", "Small Cap"]
 ASSET_COLORS = ["#00b0f6", "#00e676", "#ffd600", "#ff6d00"]
@@ -597,14 +679,15 @@ if run_btn:
     st.dataframe(df_table, use_container_width=True, hide_index=True)
 
 else:
-    st.info("Adjust the parameters in the sidebar and click RUN SIMULATION to begin.")
-    st.markdown("""
-    **What this simulator includes:**
-    - Wealth Projection with P10, P25, P50, P75, P90 confidence bands
-    - Drawdown Risk: peak-to-trough decline at median and stress percentiles
-    - Asset Allocation Drift: how the portfolio mix evolves over time
-    - Withdrawal Coverage Ratio: years of SWP remaining in the corpus
-    - Effective Withdrawal Rate vs Blended Expected Return, year by year
-    - Safe SWP Finder: binary search for maximum sustainable monthly withdrawal
-    - Yearly table with P10/P90 range, coverage ratio, effective rate, and survival probability
-    """)
+    if not missing_inputs:
+        st.info("Adjust the parameters in the sidebar and click RUN SIMULATION to begin.")
+        st.markdown("""
+        **What this simulator includes:**
+        - Wealth Projection with P10, P25, P50, P75, P90 confidence bands
+        - Drawdown Risk: peak-to-trough decline at median and stress percentiles
+        - Asset Allocation Drift: how the portfolio mix evolves over time
+        - Withdrawal Coverage Ratio: years of SWP remaining in the corpus
+        - Effective Withdrawal Rate vs Blended Expected Return, year by year
+        - Safe SWP Finder: binary search for maximum sustainable monthly withdrawal
+        - Yearly table with P10/P90 range, coverage ratio, effective rate, and survival probability
+        """)
